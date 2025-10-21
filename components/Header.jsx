@@ -75,9 +75,9 @@ const navigation = [
               </div>
               <div>
                 <h1 className="text-2xl font-bold text-gray-900">
-                  Stock<span className="text-yellow-500">Manager</span>
+                  EMIRATES<span className="text-yellow-500">RESORT</span>
                 </h1>
-                <p className="text-sm text-gray-500 hidden sm:block">Smart Inventory & Sales Tracking</p>
+                <p className="text-sm text-gray-500 hidden sm:block">Kwa Kavemba</p>
               </div>
             </div>
           </div>

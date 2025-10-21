@@ -6,13 +6,13 @@ import { useMemo } from 'react';
 export default function AnalysisPage() {
   const { state } = useApp();
 
-  // Calculate overall analysis data
+  // Calculate overall analysis data using actual profit from daily summaries
   const totalRevenue = state.dailySummaries.reduce((sum, day) => sum + (day.totalRevenue || 0), 0);
   const totalExpenses = state.dailySummaries.reduce((sum, day) => sum + (day.totalExpenses || 0), 0);
-  const totalProfit = totalRevenue - totalExpenses;
+  const totalProfit = state.dailySummaries.reduce((sum, day) => sum + (day.profit || 0), 0); // Use actual profit
   const totalItemsSold = state.dailySales.reduce((sum, sale) => sum + (parseFloat(sale.quantitySold) || 0), 0);
 
-  // Calculate monthly data
+  // Calculate monthly data using actual profit
   const monthlyData = useMemo(() => {
     const months = {};
     
@@ -27,7 +27,7 @@ export default function AnalysisPage() {
           name: monthName,
           revenue: 0,
           expenses: 0,
-          profit: 0,
+          profit: 0, // Use actual profit from summaries
           days: 0,
           mpesa: 0,
           cashRemaining: 0
@@ -36,7 +36,7 @@ export default function AnalysisPage() {
       
       months[monthKey].revenue += summary.totalRevenue || 0;
       months[monthKey].expenses += summary.totalExpenses || 0;
-      months[monthKey].profit += (summary.totalRevenue || 0) - (summary.totalExpenses || 0);
+      months[monthKey].profit += summary.profit || 0; // Use stored profit
       months[monthKey].mpesa += summary.totalMpesa || 0;
       months[monthKey].cashRemaining += summary.cashRemaining || 0;
       months[monthKey].days += 1;
@@ -66,7 +66,7 @@ export default function AnalysisPage() {
   const profitGrowth2 = previousMonth2.profit ? 
     ((currentMonth.profit - previousMonth2.profit) / previousMonth2.profit * 100) : 0;
 
-  // Calculate profit margins
+  // Calculate profit margins using actual profit
   const currentMargin = currentMonth.revenue ? (currentMonth.profit / currentMonth.revenue * 100) : 0;
   const previousMargin1 = previousMonth1.revenue ? (previousMonth1.profit / previousMonth1.revenue * 100) : 0;
   const previousMargin2 = previousMonth2.revenue ? (previousMonth2.profit / previousMonth2.revenue * 100) : 0;
@@ -75,12 +75,41 @@ export default function AnalysisPage() {
   const currentDailyRevenue = currentMonth.days ? (currentMonth.revenue / currentMonth.days) : 0;
   const currentDailyProfit = currentMonth.days ? (currentMonth.profit / currentMonth.days) : 0;
 
+  // Calculate profit distribution
+  const profitDistribution = useMemo(() => {
+    const profitableDays = state.dailySummaries.filter(day => (day.profit || 0) > 0).length;
+    const breakEvenDays = state.dailySummaries.filter(day => (day.profit || 0) === 0).length;
+    const lossDays = state.dailySummaries.filter(day => (day.profit || 0) < 0).length;
+    const totalDays = state.dailySummaries.length;
+
+    return {
+      profitableDays,
+      breakEvenDays,
+      lossDays,
+      profitablePercentage: totalDays ? (profitableDays / totalDays * 100) : 0,
+      lossPercentage: totalDays ? (lossDays / totalDays * 100) : 0
+    };
+  }, [state.dailySummaries]);
+
+  // Best and worst performing days
+  const bestDay = useMemo(() => {
+    return state.dailySummaries
+      .filter(day => day.profit !== undefined)
+      .sort((a, b) => (b.profit || 0) - (a.profit || 0))[0];
+  }, [state.dailySummaries]);
+
+  const worstDay = useMemo(() => {
+    return state.dailySummaries
+      .filter(day => day.profit !== undefined)
+      .sort((a, b) => (a.profit || 0) - (b.profit || 0))[0];
+  }, [state.dailySummaries]);
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-green-50 to-yellow-50">
       <div className="container mx-auto px-4 py-8">
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-gray-900 mb-2">Business Analysis</h1>
-          <p className="text-gray-600">Comprehensive insights into your business performance</p>
+          <p className="text-gray-600">Comprehensive insights into your business performance using actual profit data</p>
         </div>
 
         {/* Overall Summary Cards */}
@@ -97,14 +126,14 @@ export default function AnalysisPage() {
             </div>
           </div>
 
-          <div className="bg-white rounded-xl shadow-sm border border-yellow-200 p-6">
+          <div className="bg-white rounded-xl shadow-sm border border-purple-200 p-6">
             <div className="flex items-center">
-              <div className="w-12 h-12 bg-yellow-100 rounded-lg flex items-center justify-center mr-4">
+              <div className="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center mr-4">
                 <span className="text-2xl">📊</span>
               </div>
               <div>
                 <p className="text-sm text-gray-600">Total Profit</p>
-                <p className={`text-2xl font-bold ${totalProfit >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                <p className={`text-2xl font-bold ${totalProfit >= 0 ? 'text-purple-600' : 'text-red-600'}`}>
                   KSh {totalProfit.toLocaleString()}
                 </p>
               </div>
@@ -154,7 +183,7 @@ export default function AnalysisPage() {
                   <span className="font-bold text-red-600">KSh {currentMonth.expenses?.toLocaleString() || '0'}</span>
                 </div>
                 <div className="flex justify-between border-t border-green-200 pt-2">
-                  <span className="text-purple-700 font-semibold">Profit:</span>
+                  <span className="text-purple-700 font-semibold">Actual Profit:</span>
                   <span className={`font-bold text-lg ${currentMonth.profit >= 0 ? 'text-purple-700' : 'text-red-600'}`}>
                     KSh {currentMonth.profit?.toLocaleString() || '0'}
                   </span>
@@ -184,7 +213,7 @@ export default function AnalysisPage() {
                   <span className="font-bold text-red-600">KSh {previousMonth1.expenses?.toLocaleString() || '0'}</span>
                 </div>
                 <div className="flex justify-between border-t border-blue-200 pt-2">
-                  <span className="text-purple-700 font-semibold">Profit:</span>
+                  <span className="text-purple-700 font-semibold">Actual Profit:</span>
                   <span className={`font-bold text-lg ${previousMonth1.profit >= 0 ? 'text-purple-700' : 'text-red-600'}`}>
                     KSh {previousMonth1.profit?.toLocaleString() || '0'}
                   </span>
@@ -216,7 +245,7 @@ export default function AnalysisPage() {
                   <span className="font-bold text-red-600">KSh {previousMonth2.expenses?.toLocaleString() || '0'}</span>
                 </div>
                 <div className="flex justify-between border-t border-gray-200 pt-2">
-                  <span className="text-purple-700 font-semibold">Profit:</span>
+                  <span className="text-purple-700 font-semibold">Actual Profit:</span>
                   <span className={`font-bold text-lg ${previousMonth2.profit >= 0 ? 'text-purple-700' : 'text-red-600'}`}>
                     KSh {previousMonth2.profit?.toLocaleString() || '0'}
                   </span>
@@ -301,6 +330,99 @@ export default function AnalysisPage() {
           </div>
         </div>
 
+        {/* Profit Performance Insights */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+          <div className="bg-white rounded-xl shadow-sm border border-green-200 p-6">
+            <h3 className="text-lg font-semibold mb-4">Profit Distribution</h3>
+            <div className="space-y-4">
+              <div>
+                <div className="flex justify-between mb-1">
+                  <span className="text-sm text-gray-600">Profitable Days</span>
+                  <span className="text-sm font-medium text-green-600">
+                    {profitDistribution.profitableDays} days ({profitDistribution.profitablePercentage.toFixed(1)}%)
+                  </span>
+                </div>
+                <div className="w-full bg-gray-200 rounded-full h-2">
+                  <div 
+                    className="bg-green-500 h-2 rounded-full" 
+                    style={{ width: `${profitDistribution.profitablePercentage}%` }}
+                  ></div>
+                </div>
+              </div>
+              
+              <div>
+                <div className="flex justify-between mb-1">
+                  <span className="text-sm text-gray-600">Loss Days</span>
+                  <span className="text-sm font-medium text-red-600">
+                    {profitDistribution.lossDays} days ({profitDistribution.lossPercentage.toFixed(1)}%)
+                  </span>
+                </div>
+                <div className="w-full bg-gray-200 rounded-full h-2">
+                  <div 
+                    className="bg-red-500 h-2 rounded-full" 
+                    style={{ width: `${profitDistribution.lossPercentage}%` }}
+                  ></div>
+                </div>
+              </div>
+
+              {bestDay && (
+                <div className="bg-green-50 p-3 rounded-lg border border-green-200">
+                  <p className="text-sm font-medium text-green-800 mb-1">Best Performing Day</p>
+                  <p className="text-xs text-green-600">
+                    {bestDay.date}: KSh {bestDay.profit?.toLocaleString()} profit
+                  </p>
+                </div>
+              )}
+
+              {worstDay && worstDay.profit < 0 && (
+                <div className="bg-red-50 p-3 rounded-lg border border-red-200">
+                  <p className="text-sm font-medium text-red-800 mb-1">Worst Performing Day</p>
+                  <p className="text-xs text-red-600">
+                    {worstDay.date}: KSh {Math.abs(worstDay.profit || 0).toLocaleString()} loss
+                  </p>
+                </div>
+              )}
+            </div>
+          </div>
+
+          <div className="bg-white rounded-xl shadow-sm border border-purple-200 p-6">
+            <h3 className="text-lg font-semibold mb-4">Profit Efficiency</h3>
+            <div className="space-y-4">
+              <div className="text-center">
+                <p className="text-sm text-gray-600 mb-1">Overall Profit Margin</p>
+                <p className={`text-2xl font-bold ${totalProfit >= 0 ? 'text-purple-600' : 'text-red-600'}`}>
+                  {totalRevenue ? (totalProfit / totalRevenue * 100).toFixed(1) : 0}%
+                </p>
+              </div>
+              
+              <div className="grid grid-cols-2 gap-4">
+                <div className="text-center">
+                  <p className="text-sm text-gray-600 mb-1">Revenue per Item</p>
+                  <p className="text-lg font-bold text-green-600">
+                    KSh {totalItemsSold ? (totalRevenue / totalItemsSold).toFixed(0) : 0}
+                  </p>
+                </div>
+                <div className="text-center">
+                  <p className="text-sm text-gray-600 mb-1">Profit per Item</p>
+                  <p className={`text-lg font-bold ${totalProfit >= 0 ? 'text-purple-600' : 'text-red-600'}`}>
+                    KSh {totalItemsSold ? (totalProfit / totalItemsSold).toFixed(0) : 0}
+                  </p>
+                </div>
+              </div>
+
+              <div className="bg-blue-50 p-3 rounded-lg border border-blue-200">
+                <p className="text-sm font-medium text-blue-800 mb-1">Key Insight</p>
+                <p className="text-xs text-blue-600">
+                  {totalProfit > 0 
+                    ? `Your business is profitable with a ${(totalProfit / totalRevenue * 100).toFixed(1)}% margin`
+                    : 'Focus on reducing expenses and increasing sales to achieve profitability'
+                  }
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+
         {/* Additional Analysis Content */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
@@ -339,17 +461,19 @@ export default function AnalysisPage() {
           </div>
 
           <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-            <h3 className="text-lg font-semibold mb-4">Recent Activity</h3>
+            <h3 className="text-lg font-semibold mb-4">Recent Daily Profits</h3>
             <div className="space-y-3">
               {state.dailySummaries.slice(0, 5).map((summary) => (
                 <div key={summary.$id} className="flex justify-between items-center py-2 border-b border-gray-100">
                   <div>
                     <span className="text-sm text-gray-600">{summary.date}</span>
                     <p className="text-xs text-gray-500">
-                      Profit: KSh {((summary.totalRevenue || 0) - (summary.totalExpenses || 0)).toLocaleString()}
+                      Revenue: KSh {(summary.totalRevenue || 0).toLocaleString()}
                     </p>
                   </div>
-                  <span className="font-medium text-green-600">KSh {summary.totalRevenue?.toLocaleString()}</span>
+                  <span className={`font-medium ${(summary.profit || 0) >= 0 ? 'text-purple-600' : 'text-red-600'}`}>
+                    KSh {(summary.profit || 0).toLocaleString()} profit
+                  </span>
                 </div>
               ))}
             </div>
